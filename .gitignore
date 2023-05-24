@@ -162,3 +162,4 @@ conda
 glove.6B.100d.txt
 self_attention.pth
 .idea/
+models/
