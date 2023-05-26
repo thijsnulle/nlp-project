@@ -66,7 +66,7 @@ class SST2Dataset(Dataset):
         word2idx = {}
         embedding_matrix = []
 
-        with open('/content/drive/My Drive/glove.6B.100d.txt', 'r', encoding='utf-8') as f:
+        with open('glove.6B.100d.txt', 'r', encoding='utf-8') as f:
             for line in f:
                 values = line.split()
                 word = values[0]
