@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from models.embedding_model import EmbeddingModel
+# from models.embedding_model import EmbeddingModel
 from models.rnn_soft_attention import RNNWithSoftAttention
 from models.self_attention import SelfAttentionModel
 from sst2_dataset import SST2Dataset
@@ -56,16 +56,18 @@ def training_loop(model: nn.Module, dataset: SST2Dataset, data_split_ratio=0.8, 
 
     torch.save(model.state_dict(), f'models/{model.__class__.__name__}.pth')
 
+
+
 if __name__ == '__main__':
     dataset = SST2Dataset(max_length=128)
     hidden_dim = 256
     output_dim = 2
 
-    embedding_model = EmbeddingModel(dataset.embedding_matrix, hidden_dim, output_dim).to(device)
+    # embedding_model = EmbeddingModel(dataset.embedding_matrix, hidden_dim, output_dim).to(device)
     rnn_soft_attention = RNNWithSoftAttention(dataset.embedding_matrix, hidden_dim, output_dim).to(device)
     self_attention = SelfAttentionModel(output_dim, dataset.embedding_matrix).to(device)
 
     training_loop(rnn_soft_attention, dataset, num_epochs=5)
-    training_loop(embedding_model, dataset, num_epochs=100)
+    # training_loop(embedding_model, dataset, num_epochs=100)
     
     # training_loop(self_attention, dataset, num_epochs=5)
