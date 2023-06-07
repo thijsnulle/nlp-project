@@ -12,6 +12,7 @@ class SelfAttentionModel(nn.Module):
 
     def forward(self, input_ids):
         embedded_input = self.embedding(input_ids)
+        embedded_input = embedded_input.permute(1, 0, 2)  # Swap batch and sequence dimensions for multihead attention
         attention_output, _ = self.self_attention(embedded_input, embedded_input, embedded_input)
         attention_output = attention_output.permute(1, 0, 2)
         summed_output = torch.sum(attention_output, dim=1)
