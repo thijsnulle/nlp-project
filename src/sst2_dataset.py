@@ -27,6 +27,13 @@ class SST2Dataset(Dataset):
 
         return torch.tensor(embedding_matrix, dtype=torch.float32)
 
+    def text_to_input_ids(self, text):
+        input_ids = [self.embedding_matrix.size(0) - 1] * self.max_length
+        for i, word in enumerate(text.split()[:self.max_length]):
+            if word in self.word2idx:
+                input_ids[i] = self.word2idx[word]
+        return torch.tensor(input_ids)
+
     def __len__(self):
         return len(self.dataset['train'])
 
