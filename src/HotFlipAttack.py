@@ -20,48 +20,68 @@ class HotFlipAttack:
         self.tokenizer = tokenizer
         self.forbidden_tokens = forbidden_tokens
 
-    def hotflip_attack(self, input_ids, true_label):
+    def hotflip_attack(self, input_tokens, true_label, max_attempts=10):
         original_mode = self.model.training
         self.model.train()
+        # Convert tokens to ids and put them into tensor
+        # input_ids = torch.tensor([self.tokenizer.word2idx[token] for token in input_tokens]).unsqueeze(0).to(device)
 
-        input_ids = torch.tensor(input_ids, dtype=torch.long).unsqueeze(0).to(device)
+        input_ids = [self.tokenizer.word2idx.get(token, None) for token in input_tokens]
+        input_ids = [id_ for id_ in input_ids if id_ is not None]  # filtering out the None values
+        input_ids = torch.tensor(input_ids).unsqueeze(0).to(device)
 
         input_embeddings = self.model.get_input_embeddings()(input_ids)
         input_embeddings = input_embeddings.clone().detach().requires_grad_(True)
-
         outputs = self.model.forward_with_embeddings(input_embeddings)
-
         loss = nn.CrossEntropyLoss()(outputs, torch.tensor([true_label]).to(device))
-
-
         self.model.zero_grad()
         loss.backward()
-
         grads = input_embeddings.grad.data
 
-        token_idx = torch.argmax(torch.sum(grads, dim=2))
+        original_tokens = input_tokens.copy()
 
-        original_token = self.tokenizer.convert_id_to_word(input_ids[0, token_idx].cpu().numpy())
+        for _ in range(max_attempts):
+            # Find the token with the highest gradient
+            token_idx = torch.argmax(torch.sum(grads, dim=2))
 
-        best_replacement = self.get_best_replacement_token(grads[0, token_idx], original_token)
+            # Check if it's OOV. If so, set its gradient to -infinity and continue to the next loop iteration
+            if input_tokens[token_idx] not in self.tokenizer.word2idx:
+                grads[0, token_idx] = float('-inf')
+                continue
 
-        input_ids = input_ids.cpu()
-        input_ids[0, token_idx] = best_replacement
-        self.model.train(original_mode)
+            original_token = input_tokens[token_idx]
+            best_replacement = self.get_best_replacement_token(grads[0, token_idx], original_token)
+            # Replace the selected token with the best replacement
+            input_tokens[token_idx] = best_replacement
+            # Recompute prediction
+            self.model.train(original_mode)
+            # input_ids = torch.tensor([self.tokenizer.word2idx[token] for token in input_tokens]).unsqueeze(0).to(device)
 
-        return input_ids
+            input_ids = [self.tokenizer.word2idx.get(token, None) for token in input_tokens]
+            input_ids = [id_ for id_ in input_ids if id_ is not None]  # filtering out the None values
+            input_ids = torch.tensor(input_ids).unsqueeze(0).to(device)
+
+            outputs = self.model(input_ids)
+            predicted_label = torch.argmax(outputs, dim=1).item()
+            if predicted_label != true_label:
+                # Successful attack, break the loop
+                break
+            else:
+                # Attack unsuccessful, prepare for the next loop iteration
+                # Restore the original token
+                input_tokens[token_idx] = original_tokens[token_idx]
+                # Set the gradient of this token to -infinity so it will not be selected again
+                grads[0, token_idx] = float('-inf')
+        return input_tokens
 
     def get_best_replacement_token(self, grads, original_token):
         # Add original token to the forbidden tokens for this iteration
         current_forbidden_tokens = self.forbidden_tokens.copy()
         current_forbidden_tokens.append(original_token)
-
         grads = grads.detach()
-
         original_token_id = self.tokenizer.word2idx[original_token]
         original_token_embedding = self.model.embedding(
             torch.tensor([original_token_id]).to(device)).detach()
-
         # Compute the cosine similarity between the original token embedding and all other token embeddings
         cosine_similarities = nn.functional.cosine_similarity(
             original_token_embedding,
@@ -84,9 +104,11 @@ class HotFlipAttack:
         if valid_dot_products.numel() == 0:  # no valid tokens
             # you can either return the original token id here,
             # or a random token id, depending on your preference.
-            return self.tokenizer.word2idx[original_token]
+            return self.tokenizer.convert_id_to_word(self.tokenizer.word2idx[original_token])
         best_replacement_index = torch.argmax(valid_dot_products)
-        best_replacement_token = torch.arange(dot_products.shape[0]).to(device)[valid_tokens][best_replacement_index]
+        best_replacement_id = torch.arange(dot_products.shape[0]).to(device)[valid_tokens][best_replacement_index]
+
+        best_replacement_token = self.tokenizer.convert_id_to_word(best_replacement_id.item())
 
         return best_replacement_token
 
@@ -100,7 +122,7 @@ rnn_soft_attention.load_state_dict(torch.load('models/RNNWithSoftAttention.pth')
 rnn_soft_attention = rnn_soft_attention.to(device)
 attack = HotFlipAttack(model=rnn_soft_attention, tokenizer=dataset.tokenizer, forbidden_tokens=['great', 'awful', 'the', ''])
 
-attack_dataset = dataset.dataset['test']
+attack_dataset = dataset.dataset['validation']
 
 successes = 0
 total = 0
@@ -108,25 +130,40 @@ total = 0
 for example in attack_dataset:
     input_text = example['sentence']
     true_label = example['label']
-    input_ids = dataset.text_to_input_ids(input_text)
-    input_ids = input_ids.to(device)
-    rnn_input_ids = input_ids.unsqueeze(0).to(device)
+
+    # Convert input text into tokens
+    input_tokens = dataset.tokenizer.tokenize(input_text)
+
+    # Get ids from tokens for model prediction
+    # input_ids = torch.tensor([dataset.tokenizer.word2idx[token] for token in input_tokens]).unsqueeze(0).to(device)
+
+    input_ids = [dataset.tokenizer.word2idx.get(token, None) for token in input_tokens]
+    input_ids = [id_ for id_ in input_ids if id_ is not None]  # filtering out the None values
+    input_ids = torch.tensor(input_ids).unsqueeze(0).to(device)
+
     rnn_soft_attention.eval()
     with torch.no_grad():
-        outputs = rnn_soft_attention(rnn_input_ids)
-        predicted_label = outputs.argmax(dim=1).item()
+        outputs = rnn_soft_attention(input_ids)
+        original_prediction = outputs.argmax(dim=1).item()
 
-    adversarial_input_ids = attack.hotflip_attack(input_ids, predicted_label)
-    print(time.time())
-    adversarial_text = ' '.join([dataset.tokenizer.convert_id_to_word(id) for id in adversarial_input_ids[0] if id != dataset.tokenizer.pad_token_id])
+    # Attack using tokens
+    adversarial_tokens = attack.hotflip_attack(input_tokens, true_label)
+    adversarial_text = ' '.join(adversarial_tokens)
+    # Convert adversarial tokens into ids for model prediction
+    # adversarial_input_ids = torch.tensor([dataset.tokenizer.word2idx[token] for token in adversarial_tokens]).unsqueeze(0).to(device)
+
+    adversarial_input_ids = [dataset.tokenizer.word2idx.get(token, None) for token in adversarial_tokens]
+    adversarial_input_ids = [id_ for id_ in adversarial_input_ids if id_ is not None]  # filtering out the None values
+    adversarial_input_ids = torch.tensor(adversarial_input_ids).unsqueeze(0).to(device)
 
     rnn_soft_attention.eval()
-    adversarial_input_ids = adversarial_input_ids.to(device)
     with torch.no_grad():
-        adversarial_prediction = rnn_soft_attention(adversarial_input_ids).argmax(dim=1)
+        adversarial_outputs = rnn_soft_attention(adversarial_input_ids)
+        adversarial_prediction = adversarial_outputs.argmax(dim=1).item()
 
-    if adversarial_prediction != predicted_label:
+    if adversarial_prediction != original_prediction:
         successes += 1
     total += 1
 
 print(f'Attack success rate: {successes / total * 100:.2f}%')
+
