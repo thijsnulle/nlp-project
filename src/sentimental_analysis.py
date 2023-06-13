@@ -73,5 +73,5 @@ if __name__ == '__main__':
     # change string to a list of words
     sentence = sentence.split()
 
-    print("Low sentiment", only_low_sentiment_words(sentence, 0.1))
+    print("Low sentiment", sentiment_analysis_sentence(sentence))
     # print("this is s, s")
