@@ -1,0 +1,13 @@
+Writing logs to ./outputs/2023-05-30-13-55-33-772055/train_log.txt.
+Wrote original training args to ./outputs/2023-05-30-13-55-33-772055/training_args.json.
+***** Running training *****
+  Num examples = 67349
+  Num epochs = 3
+  Num clean epochs = 1
+  Instantaneous batch size per device = 6
+  Total train batch size (w. parallel, distributed & accumulation) = 6
+  Gradient accumulation steps = 1
+  Total optimization steps = 56125
+==========================================================
+Epoch 1
+Running clean epoch 1/1
