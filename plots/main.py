@@ -3,7 +3,7 @@ import numpy as np
 import plotly.graph_objs as go
 from sklearn.decomposition import PCA
 
-from model import get_model
+from model import get_model, save_model
 from words import get_flatten_words, get_only_successful_words
 
 def display_pca_scatterplot_3D(model, user_input=None, allwords=None, label=None, color_map=None, topn=10, sample=10):
@@ -26,7 +26,7 @@ def display_pca_scatterplot_3D(model, user_input=None, allwords=None, label=None
     word_vectors = np.array([model[w] for w in words])
     print("word vectors", len(word_vectors))
 
-    three_dim = PCA(random_state=0).fit_transform(word_vectors)[:,:3]
+    three_dim = PCA(random_state=0).fit_transform(word_vectors)[:,:2]
     # For 2D, change the three_dim variable into something like two_dim like the following:
     # two_dim = PCA(random_state=0).fit_transform(word_vectors)[:,:2]
 
@@ -41,10 +41,9 @@ def display_pca_scatterplot_3D(model, user_input=None, allwords=None, label=None
                 elif i == 2:
                     topn = len(attention)
 
-                trace = go.Scatter3d(
+                trace = go.Scatter(
                     x = three_dim[count:count+topn,0],
                     y = three_dim[count:count+topn,1],
-                    z = three_dim[count:count+topn,2],
                     text = words[count:count+topn],
                     name = user_input[i],
                     textposition = "top center",
@@ -64,10 +63,9 @@ def display_pca_scatterplot_3D(model, user_input=None, allwords=None, label=None
                 data.append(trace)
                 count = count+topn
 
-    trace_input = go.Scatter3d(
+    trace_input = go.Scatter(
                     x = three_dim[count:,0],
                     y = three_dim[count:,1],
-                    z = three_dim[count:,2],
                     text = words[count:],
                     name = 'input words',
                     textposition = "top center",
@@ -118,8 +116,8 @@ if __name__ == '__main__':
     This is the file to create the plots!
     **Paste the words in words.py**
     """
-    PLOT_SUCCESSFUL_ONLY = True
-    MAX_WORDS = 10 # -1 means all words
+    PLOT_SUCCESSFUL_ONLY = False
+    MAX_WORDS = -1 # -1 means all words
 
     # Check which words you want to plot
     if PLOT_SUCCESSFUL_ONLY:
