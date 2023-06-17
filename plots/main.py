@@ -4,11 +4,16 @@ import plotly.graph_objs as go
 from sklearn.decomposition import PCA
 
 from model import get_model
-from words import get_flatten_words
+from words import get_flatten_words, get_only_successful_words
 
-def display_pca_scatterplot_3D(model, user_input=None, words=None, label=None, color_map=None, topn=10, sample=10):
-    print("len words", len(words), len(label), len(color_map), len(user_input))
-    topn = len(words)
+def display_pca_scatterplot_3D(model, user_input=None, allwords=None, label=None, color_map=None, topn=10, sample=10):
+    print("len words", len(allwords), len(label), len(color_map), len(user_input))
+    rnn, embedding, attention = allwords
+
+    words = rnn + embedding + attention
+    print("rnn, embedding, attention", len(rnn), len(embedding), len(attention))
+
+    print("words", words)
     if words == None:
         print("we dont have words?")
         if sample > 0:
@@ -29,6 +34,12 @@ def display_pca_scatterplot_3D(model, user_input=None, words=None, label=None, c
     count = 0
 
     for i in range (len(user_input)):
+                if i == 0:
+                    topn = len(rnn)
+                elif i == 1:
+                    topn = len(embedding)
+                elif i == 2:
+                    topn = len(attention)
 
                 trace = go.Scatter3d(
                     x = three_dim[count:count+topn,0],
@@ -103,12 +114,32 @@ def display_pca_scatterplot_3D(model, user_input=None, words=None, label=None, c
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    # similar_word = ["male", "woman", "female", "programmer", "household"]
-    print("Getting similar words")
-    similar_word = get_flatten_words()
-    print("similar words len", len(similar_word))
+    """
+    This is the file to create the plots!
+    **Paste the words in words.py**
+    """
+    PLOT_SUCCESSFUL_ONLY = True
+    MAX_WORDS = 10 # -1 means all words
 
+    # Check which words you want to plot
+    if PLOT_SUCCESSFUL_ONLY:
+        rnn_words, embedding_words, attention_words = get_only_successful_words()
+    else:
+        rnn_words, embedding_words, attention_words = get_flatten_words()
 
+    print("Plotting", len(rnn_words))
+    # Number of words you want to plot.
+    if MAX_WORDS == -1:
+        MAX_WORDS = max(len(rnn_words), len(embedding_words), len(attention_words))
+
+    print("Words", len(rnn_words), len(embedding_words), len(attention_words))
+
+    # Only select the subset of words
+    rnn_words = rnn_words[:min(MAX_WORDS, len(rnn_words))]
+    embedding_words = embedding_words[:min(MAX_WORDS, len(embedding_words))]
+    attention_words = attention_words[:min(MAX_WORDS, len(attention_words))]
+
+    # Get the GloVe model. This one is used
     model = get_model()
 
     def append_list(sim_words, words):
@@ -126,28 +157,29 @@ if __name__ == '__main__':
 
     input_word = 'positive'
     user_input = [x.strip() for x in input_word.split(',')]
-    print("user_input", user_input)
+
     result_word = []
 
     for words in user_input:
         sim_words = model.most_similar(words, topn=5)
         sim_words = append_list(sim_words, words)
-        print("simwords", sim_words)
         result_word.extend(sim_words)
 
-    print("Most similar top 5,", result_word)
-    # similar_word = [word[0] for word in result_word]
-    similarity = [word[1] for word in result_word]
-    # similar_word.extend(user_input)
-    # print("result_word", similar_word)
-    labels = ["class_1" for word in similar_word]
+    # Need to adjust the classes.
+    labels_rnn = ["rnnz" for word in rnn_words]
+    labels_embedding = ["embeddingz" for word in embedding_words]
+    labels_attention = ["attentionz" for word in attention_words]
+    labels = labels_rnn + labels_embedding + labels_attention
+
+    print("LAbels", labels)
+    print("WoWrds", rnn_words + embedding_words + attention_words)
+
     label_dict = dict([(y, x + 1) for x, y in enumerate(set(labels))])
     color_map = [label_dict[x] for x in labels]
-    print('labels', labels, user_input)
-    print("SIM Words", sim_words)
-    print("label v2", ["rnn" for i in similar_word])
     print("color_map", color_map)
-    display_pca_scatterplot_3D(model, ["rnn"], similar_word[:300], ["rnn" for i in similar_word][:300], color_map[:300])
+
+
+    display_pca_scatterplot_3D(model,['rnn', 'embedding', 'attention'], [rnn_words, embedding_words, attention_words], labels, color_map)
     # display_pca_scatterplot_3D(model, words=["male", "female"])
 
 
