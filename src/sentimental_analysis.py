@@ -1,6 +1,15 @@
+from typing import List
+
 import numpy as np
 import nltk
-nltk.download('vader_lexicon')
+# nltk.download('vader_lexicon')
+from nltk.stem import WordNetLemmatizer
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+
+import numpy as np
+import nltk
+#nltk.download('vader_lexicon')
 from nltk.stem import WordNetLemmatizer
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
@@ -19,7 +28,7 @@ def sentiment_analysis_word(word: str) -> float:
     return sentiment
 
 
-def sentiment_analysis_sentence(sentence: [str]) -> (float, float):
+def sentiment_analysis_sentence(sentence: List[str]) -> (float, float):
     """
     This function takes a sentence as input and returns the sentiment of the sentence.
     :param sentence: string
@@ -34,7 +43,25 @@ def sentiment_analysis_sentence(sentence: [str]) -> (float, float):
     return (sentiment, np.mean(sentiment))
 
 
-def only_low_sentiment_words(sentence: [str], delta: float) -> str:
+def get_strong_sentiment_words(sentence: List[str], delta: float) -> List[str]:
+    """
+    This function takes a sentence as input and returns the words with a sentiment lower than delta.
+    :param sentence: string, which will be filtered on sentiment
+    :param delta: float, the threshold for the sentiment. The absolute value will be taken.
+    :return: string, without the words with a sentiment higher than delta
+    """
+    strong_sentiment_words = np.array([])
+
+    for i, word in enumerate(sentence):
+        s = sentiment_analysis_word(word)
+        if(np.abs(s) > np.abs(delta)):
+            print("strong sentiment word", word)
+            strong_sentiment_words = np.append(strong_sentiment_words, word)
+
+    return strong_sentiment_words
+
+
+def only_low_sentiment_words(sentence: List[str], delta: float) -> str:
     """
     This function takes a sentence as input and returns the words with a sentiment lower than delta.
     :param sentence: string, which will be filtered on sentiment
@@ -65,13 +92,3 @@ def lammatize_word(word: str) -> str:
     base_word =  lemmatizer.lemmatize(word)
 
     return base_word
-
-
-if __name__ == '__main__':
-    sentence = "I fucking love and hate you death"
-
-    # change string to a list of words
-    sentence = sentence.split()
-
-    print("Low sentiment", sentiment_analysis_sentence(sentence))
-    # print("this is s, s")
