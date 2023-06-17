@@ -95,7 +95,7 @@ class HotFlipAttack:
             input_ids = [id_ for id_ in input_ids if id_ is not None]  # filtering out the None values
             input_ids = torch.tensor(input_ids).unsqueeze(0).to(device)
 
-            outputs = self.model(input_ids)
+            outputs, _ = self.model(input_ids)
             predicted_label = torch.argmax(outputs, dim=1).item()
             if predicted_label != true_label:
                 attemped_words_to_flip = np.append(attemped_words_to_flip, "!" + best_replacement + "!")
@@ -105,7 +105,7 @@ class HotFlipAttack:
                 grads[0, token_idx] = float('-inf')
                 attemped_words_to_flip = np.append(attemped_words_to_flip, best_replacement)
                 break
-        return input_tokens, first_selected_token.item(), attemped_words_to_flip
+        return input_tokens, first_selected_token, attemped_words_to_flip
 
     def get_best_replacement_token(self, grads, original_token):
         # Add original token to the forbidden tokens for this iteration
@@ -173,7 +173,6 @@ original_sentences = []
 original_labels = []
 original_predictions = []
 adversarial_sentences = []
-adversarial_labels = []
 adversarial_predictions = []
 attempts_words_to_flip = []
 adversarial_attention_weights_list = []
@@ -227,18 +226,20 @@ for example in attack_dataset:
     total += 1
     print(total)
 
+attempts_words_to_flip = [','.join(map(str, arr)) for arr in attempts_words_to_flip]
+
+print(f'Attack success rate: {successes / total * 100:.2f}%')
+print(f'Accuracy before attack: {correct_predictions_before / total * 100:.2f}%')
+print(f'Accuracy after attack: {correct_predictions_after / total * 100:.2f}%')
+
 np.savez('hotflip_results.npz',
          original_sentences=original_sentences,
          original_labels=original_labels,
          original_predictions=original_predictions,
          adversarial_sentences=adversarial_sentences,
-         adversarial_labels=adversarial_labels,
          adversarial_predictions=adversarial_predictions,
          attention_weights_list=attention_weights_list,
          perturbed_indices=perturbed_indices,
          attempts_word_to_flip=attempts_words_to_flip,
          adversarial_attention_weights_list=adversarial_attention_weights_list)
 
-print(f'Attack success rate: {successes / total * 100:.2f}%')
-print(f'Accuracy before attack: {correct_predictions_before / total * 100:.2f}%')
-print(f'Accuracy after attack: {correct_predictions_after / total * 100:.2f}%')

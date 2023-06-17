@@ -33,7 +33,7 @@ def training_loop(model: nn.Module, dataset: SST2Dataset, data_split_ratio=0.8, 
             inputs = inputs.to(device)
             labels = labels.to(device)
 
-            outputs = model(inputs)
+            outputs, _ = model(inputs)
             loss = criterion(outputs, labels)
 
             optimizer.zero_grad()
@@ -49,7 +49,7 @@ def training_loop(model: nn.Module, dataset: SST2Dataset, data_split_ratio=0.8, 
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                outputs = model(inputs)
+                outputs, _ = model(inputs)
                 _, predicted = torch.max(outputs.data, 1)
 
                 total += labels.size(0)
@@ -68,10 +68,10 @@ if __name__ == '__main__':
     output_dim = 2
 
     # embedding_model = EmbeddingModel(dataset.embedding_matrix, hidden_dim, output_dim).to(device)
-    rnn_soft_attention = RNNWithSoftAttentionTextAttack(dataset.embedding_matrix, hidden_dim, output_dim).to(device)
-    # self_attention = SelfAttentionModel(output_dim, dataset.embedding_matrix).to(device)
+    rnn_soft_attention = RNNWithSoftAttention(dataset.embedding_matrix, hidden_dim, output_dim).to(device)
+    # self_attention = SelfAttentionModel(output_dim, dataset.embedding_matrix, max_length=256).to(device)
 
-    training_loop(rnn_soft_attention, dataset, num_epochs=5)
+    training_loop(rnn_soft_attention, dataset, num_epochs=10)
     # training_loop(embedding_model, dataset, num_epochs=100)
 
-    # training_loop(self_attention, dataset, num_epochs=5)
+    #training_loop(self_attention, dataset, num_epochs=20)
