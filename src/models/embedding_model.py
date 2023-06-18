@@ -16,3 +16,12 @@ class EmbeddingModel(nn.Module):
         x = self.output(x)
 
         return x
+
+    def get_input_embeddings(self):
+        return self.embedding
+
+    def forward_with_embeddings(self, x):
+        x = torch.mean(x, dim=1)
+        x = self.fc(x)
+        x = self.output(x)
+        return x

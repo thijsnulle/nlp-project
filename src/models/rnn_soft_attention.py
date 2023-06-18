@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from textattack.models.helpers import LSTMForClassification
 
 
 class RNNWithSoftAttention(nn.Module):
@@ -42,7 +41,7 @@ class RNNWithSoftAttention(nn.Module):
         # Fully-connected layer for classification
         logits = self.fc(weighted_sum)
 
-        return logits
+        return logits, attention_weights
 
     def forward_with_embeddings(self, embeddings):
         # RNN layer
